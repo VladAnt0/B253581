@@ -14,7 +14,8 @@ Monoamine-oxidase inhibitors are a class of antidepressant medications that is n
 
 I intend to explore the prescription patterns based on geographical factors, age group (potentially), sex and deprivation. I also want to compare data for a couple of months to see if there is any obvious difference in patterns (although, I don't expect any).
 
-"warning=FALSE, message=FALSE" attribute is used in order not to print unnecessary console output
+"warning=FALSE, message=FALSE" attributes are used in order not to print unnecessary console output
+
 ## This section loads the necessary libraries
 ```{r warning=FALSE, message=FALSE }
 library(tidyverse) 

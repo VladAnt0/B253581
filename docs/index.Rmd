@@ -8,11 +8,11 @@ date: "2025-10-31"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Exploring the pattern of prescription  of MAOIs (Monoamine-oxidase inhibitors)  
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Monoamine-oxidase inhibitors are a class of antidepressant medications that is now rarely used. This is largely due to their ability to interact with a lot of other medications as well as various foods. This means they are largely reserved for specialist prescriptions and are only used for treatment-resistant depression.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+I intend to explore the prescription patterns based on geographical factors, age group (potentially), sex and deprivation. I also want to compare data for a couple of months to see if there is any obvious difference in patterns (although, I don't expect any).
 
 ```{r warning=FALSE }
 library(tidyverse)
@@ -65,10 +65,13 @@ maoi_data_summarised <- maoi_data_summarised %>%
 
 maoi_data_summarised %>% 
   filter(!is.na(all_ages)) %>% 
-  ggplot(aes(x = hb_name, y = drug_quantity / all_ages)) +
+  ggplot(aes(x = hb_name, y = drug_quantity / all_ages, fill = sex)) +
   geom_col() +
   facet_wrap(~sex) +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Prescription of MAOIs per person in each health board grouped by sex",
+       x = "Healthboard name",
+       y = "MOAI quantity per person")
 
 ```
 

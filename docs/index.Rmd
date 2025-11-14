@@ -14,10 +14,64 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
+```{r warning=FALSE}
 library(tidyverse)
-summary(cars)
+library(janitor) # cleaning data
+library(gt) # tables
+library(here) # directory structure 
+  
+HB_lookup <- read_csv("https://www.opendata.nhs.scot/dataset/9f942fdb-e59e-44f5-b534-d6e17229cc7b/resource/652ff726-e676-4a20-abda-435b98dd7bdc/download/hb14_hb19.csv") %>% 
+  clean_names() %>% 
+  select(hb, hb_name)
+
+gp_addresses <- read_csv("https://www.opendata.nhs.scot/dataset/f23655c3-6e23-4103-a511-a80d998adb90/resource/30b06220-17ad-44e8-b6c5-658d41ec1ea5/download/practice_contactdetails_jul2025-open-data.csv") %>%
+  clean_names()
+
+gp_practice_populations <- read_csv("https://www.opendata.nhs.scot/dataset/e3300e98-cdd2-4f4e-a24e-06ee14fcc66c/resource/9cb891c1-e886-4470-b06c-9a8cf6bf4b22/download/practice_listsizes_jul2025-open-data.csv") %>% 
+  clean_names()
+
+simd <- read_csv("https://www.opendata.nhs.scot/dataset/78d41fa9-1a62-4f7b-9edb-3e8522a93378/resource/acade396-8430-4b34-895a-b3e757fa346e/download/simd2020v2_22062020.csv") %>% 
+  clean_names()
+
 ```
+
+
+```{r}
+
+data_jun_2025 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/0f2931af-3d08-4a6b-92cf-b61be4ce8d97/download/pitc202506.csv") %>% 
+  clean_names()
+
+maois <- c("TRANYLCYPROMINE", "PHENELZINE", "ISOCARBOXAZID", "MOCLOBEMIDE")
+
+maoi_data <- data_jun_2025 %>% 
+  filter(str_detect(bnf_item_description, paste(maois, collapse = "|")))
+
+maoi_data <- maoi_data %>% 
+  left_join(HB_lookup, join_by(hbt == hb))%>% 
+  select(hb_name, hbt, gp_practice, bnf_item_description, paid_quantity, paid_date_month)
+
+maoi_data_summarised <- maoi_data %>% 
+  group_by(hb_name, hbt, gp_practice, paid_date_month) %>% 
+  summarise(drug_quantity = sum(paid_quantity))
+
+maoi_data_summarised <- maoi_data_summarised %>% 
+  left_join(gp_addresses, join_by(gp_practice == practice_code)) %>% 
+  select(hb_name:gp_practice_name, postcode, data_zone)
+
+maoi_data_summarised <- maoi_data_summarised %>% 
+  left_join(gp_practice_populations, join_by(gp_practice == practice_code)) %>% 
+  select(hb_name:data_zone, sex, all_ages)
+
+
+maoi_data_summarised %>% 
+  filter(!is.na(all_ages)) %>% 
+  ggplot(aes(x = hb_name, y = drug_quantity / all_ages)) +
+  geom_col() +
+  facet_wrap(~sex) +
+  theme(axis.text.x = element_text(angle = 90))
+
+```
+
 
 ## Including Plots
 

@@ -1,67 +1,93 @@
 ---
 title: "Assessment"
 output: html_document
-date: "2025-10-31"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Exploring the pattern of prescription  of MAOIs (Monoamine-oxidase inhibitors)  
+# Exploring the pattern of prescription  of MAOIs (Monoamine-oxidase inhibitors)  
 
 Monoamine-oxidase inhibitors are a class of antidepressant medications that is now rarely used. This is largely due to their ability to interact with a lot of other medications as well as various foods. This means they are largely reserved for specialist prescriptions and are only used for treatment-resistant depression.
 
 I intend to explore the prescription patterns based on geographical factors, age group (potentially), sex and deprivation. I also want to compare data for a couple of months to see if there is any obvious difference in patterns (although, I don't expect any).
 
-```{r warning=FALSE }
-library(tidyverse)
+"warning=FALSE, message=FALSE" attribute is used in order not to print unnecessary console output
+## This section loads the necessary libraries
+```{r warning=FALSE, message=FALSE }
+library(tidyverse) 
 library(janitor) # cleaning data
 library(gt) # tables
 library(here) # directory structure 
-  
+```
+## This section loads the necessary datasets.
+
+Most of them are loaded as is for now in case I need more data. Once I am fully dome, I will be able to load only selected columns that I use to reduce the "hoarding"
+``` {r warning=FALSE, message=FALSE}
+#Loading Healthboard names and codes only as a reference dataset 
+
 HB_lookup <- read_csv("https://www.opendata.nhs.scot/dataset/9f942fdb-e59e-44f5-b534-d6e17229cc7b/resource/652ff726-e676-4a20-abda-435b98dd7bdc/download/hb14_hb19.csv") %>% 
   clean_names() %>% 
   select(hb, hb_name)
 
+#Loading GP practices details (including addresses)  
+
 gp_addresses <- read_csv("https://www.opendata.nhs.scot/dataset/f23655c3-6e23-4103-a511-a80d998adb90/resource/30b06220-17ad-44e8-b6c5-658d41ec1ea5/download/practice_contactdetails_jul2025-open-data.csv") %>%
   clean_names()
+
+#Loading GP practices population details (including age and sex distribution)
 
 gp_practice_populations <- read_csv("https://www.opendata.nhs.scot/dataset/e3300e98-cdd2-4f4e-a24e-06ee14fcc66c/resource/9cb891c1-e886-4470-b06c-9a8cf6bf4b22/download/practice_listsizes_jul2025-open-data.csv") %>% 
   clean_names()
 
+#Loading Scottish index of multiple deprivation data
+
 simd <- read_csv("https://www.opendata.nhs.scot/dataset/78d41fa9-1a62-4f7b-9edb-3e8522a93378/resource/acade396-8430-4b34-895a-b3e757fa346e/download/simd2020v2_22062020.csv") %>% 
   clean_names()
-
 ```
-
-
-```{r}
+## This section deals with the initial data exploration from June 2025 and rendering the first graph
+```{r warning=FALSE, message=FALSE}
+#Loading June 2025 GP prescriptions data
 
 data_jun_2025 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/0f2931af-3d08-4a6b-92cf-b61be4ce8d97/download/pitc202506.csv") %>% 
   clean_names()
 
+#Creating a vector of the 4 MAOIs used in the UK
+
 maois <- c("TRANYLCYPROMINE", "PHENELZINE", "ISOCARBOXAZID", "MOCLOBEMIDE")
+
+
+#Sorting out the records relevant to MAOIs into a separate dataset (done this way in case I want to use something from the main prescriptions dataset later; will likely combine with the line above when finished - general pattern for most code here)
 
 maoi_data <- data_jun_2025 %>% 
   filter(str_detect(bnf_item_description, paste(maois, collapse = "|")))
+
+#Joining the healthboard names to the MAOIs dataset and filtering out the columns of interest
 
 maoi_data <- maoi_data %>% 
   left_join(HB_lookup, join_by(hbt == hb))%>% 
   select(hb_name, hbt, gp_practice, bnf_item_description, paid_quantity, paid_date_month)
 
+#Collapsing the data so that all MAOIs are combines (worth noting that PHENELZINE isn't present at all)
 maoi_data_summarised <- maoi_data %>% 
   group_by(hb_name, hbt, gp_practice, paid_date_month) %>% 
   summarise(drug_quantity = sum(paid_quantity))
+
+#Adding the GP practice addresses
 
 maoi_data_summarised <- maoi_data_summarised %>% 
   left_join(gp_addresses, join_by(gp_practice == practice_code)) %>% 
   select(hb_name:gp_practice_name, postcode, data_zone)
 
+#Adding the population data
+
 maoi_data_summarised <- maoi_data_summarised %>% 
   left_join(gp_practice_populations, join_by(gp_practice == practice_code)) %>% 
   select(hb_name:data_zone, sex, all_ages)
 
+#Creating a bar chart of the association between healthboard and the number of MAOI prescriptions per person grouped by sex
 
 maoi_data_summarised %>% 
   filter(!is.na(all_ages)) %>% 
@@ -74,6 +100,3 @@ maoi_data_summarised %>%
        y = "MOAI quantity per person")
 
 ```
-
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

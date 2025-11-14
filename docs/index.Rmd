@@ -101,3 +101,4 @@ maoi_data_summarised %>%
        y = "MOAI quantity per person")
 
 ```
+There are clear outliers in this graph, thus, it would be interesting to explore this data more fragmentally by looking at individual GP practices withing these healthboards of interest. It's also worth noting that these three are likely to be the biggest healthboards, which means that the prescriptions might have been initiated within the specialist psychiatric hospitals which smaller healthboards might not have.

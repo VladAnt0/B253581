@@ -271,9 +271,6 @@ borders_outliers_by_deprivation
 It's fairly clear here that there is no obvious asociation between deprivation ranking and number of MAOIs prescriptions, with the surgery prescribing the most also covering the least deprived area.
 
 A similar exploration can be done for NHS Orkney. 
-
-Looking at the table, surprisingly, only one surgery. The same two hypotheses as for NHS Borders can be explored.
-
 ```{r warning=FALSE, message=FALSE, fig.align = 'center'}
 
 # Creating the table to show the data of interest sorting it out by the absolute deprivation ranking (most deprived to least deprived)
@@ -303,8 +300,13 @@ orkney_outliers_by_deprivation <- maoi_data_all_gps %>%
        title = "GP surgeries ranked by deprivation, most to least") %>% 
   # Add alternating colouring to the table rows
   opt_stylize(style = 6, color = "blue", add_row_striping = TRUE)
+```
+
+Looking at the table, surprisingly, only one surgery. The same two hypotheses as for NHS Borders can be explored.
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
 
 orkney_outliers_by_deprivation
+
 ```
 
 And, like before, no clear association. The only surgery prescribing MAOIs (at quite huge  numbers per thousand) is in the third least deprived area.

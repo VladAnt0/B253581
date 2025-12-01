@@ -1,6 +1,9 @@
 ---
 title: <center> Assessment </center>
-output: html_document
+output:
+  html_document:
+    toc: TRUE
+    code_folding: show
 date: <center> `r format(Sys.time(), '%d %B, %Y')` </center>
 ---
 
@@ -50,6 +53,7 @@ create_plot_per_pop <- function(data, x, healthboard_name) {
       filter(hb_name == {healthboard_name}) %>% 
       ggplot(aes(x = fct_rev(fct_reorder({{x}}, quantity_per_thousand)), y = quantity_per_thousand)) +
       geom_col(fill = "#e2bf8a") +
+      theme_light()+
       scale_x_discrete(labels = label_wrap(8))+
       labs(title = paste("Prescription of MAOIs per 1000 people in each GP surgery in", healthboard_name),
        x = "GP surgery name",
@@ -137,7 +141,8 @@ maoi_data_hb <- hb_populations %>%
 maoi_data_hb %>% 
   ggplot(aes(x = fct_rev(fct_reorder(hb_name, quantity_per_thousand)), y = quantity_per_thousand, )) +
   geom_col(fill = "#6c9b86") +
-  scale_x_discrete(labels = label_wrap(8)) +
+  scale_x_discrete(labels = label_wrap(8)) + 
+  theme_light()+
   labs(title = "Prescription of MAOIs per 1000 people in each health board",
        x = "Healthboard name",
        y = "MOAI quantity per 1000 people")
@@ -259,6 +264,8 @@ borders_outliers_by_deprivation <- maoi_data_all_gps %>%
        title = "GP surgeries ranked by deprivation, most to least") %>% 
   # Add alternating colouring to the table rows
   opt_stylize(style = 6, color = "cyan", add_row_striping = TRUE)
+
+borders_outliers_by_deprivation
 ```    
 
 It's fairly clear here that there is no obvious asociation between deprivation ranking and number of MAOIs prescriptions, with the surgery prescribing the most also covering the least deprived area.
@@ -278,6 +285,7 @@ Surprisingly, only one surgery. The same two hypotheses as for NHS Borders can b
 
 orkney_outliers_by_deprivation <- maoi_data_all_gps %>%
   filter(hb_name == "NHS Orkney") %>% 
+  select(hb_name, gp_practice_name: postcode, quantity_per_thousand, simd2020v2rank) %>% 
   arrange(simd2020v2rank) %>% 
   gt() %>% 
   # Rename the columns to make them more user friendly
@@ -300,6 +308,8 @@ orkney_outliers_by_deprivation <- maoi_data_all_gps %>%
        title = "GP surgeries ranked by deprivation, most to least") %>% 
   # Add alternating colouring to the table rows
   opt_stylize(style = 6, color = "blue", add_row_striping = TRUE)
+
+orkney_outliers_by_deprivation
 ```
 
 And, like before, no clear association. The only surgery prescribing MAOIs (at quite huge  numbers per thousand) is in the third least deprived area.

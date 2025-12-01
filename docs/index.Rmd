@@ -270,18 +270,13 @@ borders_outliers_by_deprivation
 
 It's fairly clear here that there is no obvious asociation between deprivation ranking and number of MAOIs prescriptions, with the surgery prescribing the most also covering the least deprived area.
 
-A similar exploration can be done for NHS Orkney
+A similar exploration can be done for NHS Orkney. 
+
+Looking at the table, surprisingly, only one surgery. The same two hypotheses as for NHS Borders can be explored.
 
 ```{r warning=FALSE, message=FALSE, fig.align = 'center'}
 
-# Calling the GP breakdown graph for NHS Orkney
-
-gp_plots$`NHS Orkney`
-```
-
-Surprisingly, only one surgery. The same two hypotheses as for NHS Borders can be explored.
-
-```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+# Creating the table to show the data of interest sorting it out by the absolute deprivation ranking (most deprived to least deprived)
 
 orkney_outliers_by_deprivation <- maoi_data_all_gps %>%
   filter(hb_name == "NHS Orkney") %>% 
@@ -314,7 +309,7 @@ orkney_outliers_by_deprivation
 
 And, like before, no clear association. The only surgery prescribing MAOIs (at quite huge  numbers per thousand) is in the third least deprived area.
 
-In conclusion, while none of the explored associations have shown clear-cut patterns, some interesting prescribing practices have been noticed. The next steps could be exploring the remaining graph dataset for other healthbords and then moving towards exploring those patterns in the context of more than one month (e.g. a year). It would also be quite useful and interesting to look at these prescribing practices in more detail, potentially, accessing clinical data. Because the question why only one out of seven (NHS Orkney) and three out twenty-two (NHS Borders) prescribe MAOIs remains.
+In conclusion, while none of the explored associations have shown clear-cut patterns, some interesting prescribing practices have been noticed. The next steps could be exploring the remaining graph dataset (list) for other healthbords and then moving towards exploring those patterns in the context of more than one month (e.g. a year). It would also be quite useful and interesting to look at these prescribing practices in more detail, potentially, accessing clinical data. Because the question why only one out of seven (NHS Orkney) and three out twenty-two (NHS Borders) prescribe MAOIs remains.
 
 <centre>
 <h2>

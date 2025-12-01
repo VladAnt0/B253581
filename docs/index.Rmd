@@ -1,105 +1,321 @@
 ---
-title: "Assessment"
+title: <center> Assessment </center>
 output: html_document
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+date: <center> `r format(Sys.time(), '%d %B, %Y')` </center>
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Exploring the pattern of prescription  of MAOIs (Monoamine-oxidase inhibitors)  
+<center> 
+<h1>
+<b>
+Exploring the pattern of prescription  of Monoamine oxidase inhibitors
+</b>
+</h1>
+</center>
 
-Monoamine-oxidase inhibitors are a class of antidepressant medications that is now rarely used. This is largely due to their ability to interact with a lot of other medications as well as various foods. This means they are largely reserved for specialist prescriptions and are only used for treatment-resistant depression.
+Monoamine oxidase inhibitors (MAOIs) are a class of antidepressant medications. They work by blocking the enzyme monoamine oxidase from breaking down brain neurotransmitters (norepinephrine, serotonin, dopamine, and tyramine), thus increasing their levels and influence on cells (Laban and Saadabadi, 2023). MAOIs are now rarely used as their prescribing is complex, with issues surrounding toxicity in overdose, drug-drug as well as food interactions. This means they are largely reserved for specialist prescriptions and are only used for treatment-resistant depression, when more straightforward options have shown little effect (Chamberlain et al., 2020).
 
-I intend to explore the prescription patterns based on geographical factors, age group (potentially), sex and deprivation. I also want to compare data for a couple of months to see if there is any obvious difference in patterns (although, I don't expect any).
+This work explores pattern of MAOIs prescribing in different health boards as well as individual GP surgeries. As these are specialist medications, it's safe to assume that they are only initiated in secondary and tertiary care with GPs participating in shared care agreements. The aforementioned fact makes them suitable for exploring:
 
-"warning=FALSE, message=FALSE" attributes are used in order not to print unnecessary console output
+* the number of prescriptions is likely to be lower, hence a clearer pattern or outliers might emerge;
 
-## This section loads the necessary libraries
-```{r warning=FALSE, message=FALSE }
+* their prescription will also indicate a more serious disease, potentially, allowing more clear relationship patterns between broader socio-economic factors and mental health ilness to emerge.
+
+<h4>
+The working hypothesis is that there is some association between MAOIs prescription numbers and GP surgeries located in more deprived areas.
+</h4>
+
+```{r warning=FALSE, message=FALSE}
+# This section loads the necessary libraries
+
 library(tidyverse) 
 library(janitor) # cleaning data
 library(gt) # tables
 library(here) # directory structure 
+library(scales) #nice wrapping of labels on graphs
+library(ggpubr) #combining multiple plots together
 ```
-## This section loads the necessary datasets.
 
-Most of them are loaded as is for now in case I need more data. Once I am fully dome, I will be able to load only selected columns that I use to reduce the "hoarding"
+
+```{r warning=FALSE, message=FALSE}
+# This section creates the necessary functions
+
+#Function to create the graph of the relationship between x, passed into function, and prescription numbers per 1000 people; the labels are adapted for the situation where x is a name of a healthboard
+
+create_plot_per_pop <- function(data, x, healthboard_name) {
+    result <- data %>%
+      filter(hb_name == {healthboard_name}) %>% 
+      ggplot(aes(x = fct_rev(fct_reorder({{x}}, quantity_per_thousand)), y = quantity_per_thousand)) +
+      geom_col(fill = "#e2bf8a") +
+      scale_x_discrete(labels = label_wrap(8))+
+      labs(title = paste("Prescription of MAOIs per 1000 people in each GP surgery in", healthboard_name),
+       x = "GP surgery name",
+       y = "MOAI quantity per 1000 people")
+}
+```
+
+Four reference datasets have been selected from <www.opendata.nhs.scot> :
+
+* Health board number and name reference "book";
+
+* Addresses and practice list size of Scottish GP surgeries (including datazone) for July 2025 (to align with the prescription dataset chosen: GP dataset is available for October, July, April and January 2025, however, prescription dataset only goes up to August 2025, making July the most up-to-date match);
+
+* Heath board population projections dataset, using the information for 2025 in order to keep it as up-to-date as possible;
+
+* Scottish Index of Multiple Deprivation (Population Weighted) dataset (including the overall rating most deprived to least deprived).
+
 ``` {r warning=FALSE, message=FALSE}
+# This section loads the necessary datasets, selecting only the colums that are relevant in order not to store unnecessary information
+
 #Loading Healthboard names and codes only as a reference dataset 
 
 HB_lookup <- read_csv("https://www.opendata.nhs.scot/dataset/9f942fdb-e59e-44f5-b534-d6e17229cc7b/resource/652ff726-e676-4a20-abda-435b98dd7bdc/download/hb14_hb19.csv") %>% 
   clean_names() %>% 
   select(hb, hb_name)
 
-#Loading GP practices details (including addresses)  
+#Loading GP practices details (including data zones)  
 
 gp_addresses <- read_csv("https://www.opendata.nhs.scot/dataset/f23655c3-6e23-4103-a511-a80d998adb90/resource/30b06220-17ad-44e8-b6c5-658d41ec1ea5/download/practice_contactdetails_jul2025-open-data.csv") %>%
-  clean_names()
+  clean_names() %>% 
+  select(practice_code:practice_list_size, postcode, hb, data_zone)
 
-#Loading GP practices population details (including age and sex distribution)
+#Loading Health board population details (to be able to use projections for the relevant year - 2025)
 
-gp_practice_populations <- read_csv("https://www.opendata.nhs.scot/dataset/e3300e98-cdd2-4f4e-a24e-06ee14fcc66c/resource/9cb891c1-e886-4470-b06c-9a8cf6bf4b22/download/practice_listsizes_jul2025-open-data.csv") %>% 
-  clean_names()
+hb_populations <- read_csv("https://www.opendata.nhs.scot/dataset/9e00b589-817e-45e6-b615-46c935bbace0/resource/0876fc67-05e6-4e87-bc30-c4b0756fff04/download/hb_pop_proj_01102025.csv") %>% 
+  clean_names() %>% 
+  filter(year == "2025") %>% 
+  select(year, hb, sex, all_ages)
 
 #Loading Scottish index of multiple deprivation data
 
 simd <- read_csv("https://www.opendata.nhs.scot/dataset/78d41fa9-1a62-4f7b-9edb-3e8522a93378/resource/acade396-8430-4b34-895a-b3e757fa346e/download/simd2020v2_22062020.csv") %>% 
-  clean_names()
+  clean_names() %>% 
+  select(data_zone, hb, simd2020v2rank, simd2020v2country_decile, simd2020v2most15pc, simd2020v2least15pc)
 ```
-## This section deals with the initial data exploration from June 2025 and rendering the first graph
-```{r warning=FALSE, message=FALSE}
-#Loading June 2025 GP prescriptions data
 
-data_jun_2025 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/0f2931af-3d08-4a6b-92cf-b61be4ce8d97/download/pitc202506.csv") %>% 
-  clean_names()
+The first step would be to have a look at a general pattern of MAOIs prescriptions in different health boards. There might be some expectation that bigger health boards with big secondary and tertiary care teams and hospitals might be prescribing more MOAIs due to greater capacity to do so (e.g. Glagow and Clyde or Lothian).
 
-#Creating a vector of the 4 MAOIs used in the UK
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+# This section deals with the initial data exploration from July 2025 and rendering the first graph
+
+#Creating a vector of the 4 MAOIs used in the UK (according to BNF)
 
 maois <- c("TRANYLCYPROMINE", "PHENELZINE", "ISOCARBOXAZID", "MOCLOBEMIDE")
 
+#Loading July 2025 GP prescriptions data, while sorting out the records relevant to MAOIs only
 
-#Sorting out the records relevant to MAOIs into a separate dataset (done this way in case I want to use something from the main prescriptions dataset later; will likely combine with the line above when finished - general pattern for most code here)
-
-maoi_data <- data_jun_2025 %>% 
-  filter(str_detect(bnf_item_description, paste(maois, collapse = "|")))
+data_july_2025 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/12448904-f11c-4a0f-8dab-8b47c5abebf8/download/pitc202507.csv") %>% 
+  clean_names() %>% 
+  filter(str_detect(bnf_item_description, paste(maois, collapse = "|"))) %>% 
+  select(hbt, gp_practice, bnf_item_description, paid_quantity)
 
 #Joining the healthboard names to the MAOIs dataset and filtering out the columns of interest
 
-maoi_data <- maoi_data %>% 
-  left_join(HB_lookup, join_by(hbt == hb))%>% 
-  select(hb_name, hbt, gp_practice, bnf_item_description, paid_quantity, paid_date_month)
+data_july_2025 <- data_july_2025 %>% 
+  left_join(HB_lookup, join_by(hbt == hb)) %>% 
+  select(hb_name, hbt : paid_quantity)
 
-#Collapsing the data so that all MAOIs are combines (worth noting that PHENELZINE isn't present at all)
-maoi_data_summarised <- maoi_data %>% 
-  group_by(hb_name, hbt, gp_practice, paid_date_month) %>% 
+#Collapsing the data so that all MAOIs are combined (worth noting that PHENELZINE isn't present at all, however, given the complexity of MAOIs prescribing, there might be many different reasons for this ) for Health boards
+
+maoi_data_hb <- data_july_2025 %>% 
+  group_by(hb_name, hbt) %>% 
   summarise(drug_quantity = sum(paid_quantity))
 
-#Adding the GP practice addresses
+#Adding the population data for healthboards, creating a new column of quantity per thousand of people. this is necessary to be able to compare different healthboards, given their vastly different population numbers
 
-maoi_data_summarised <- maoi_data_summarised %>% 
-  left_join(gp_addresses, join_by(gp_practice == practice_code)) %>% 
-  select(hb_name:gp_practice_name, postcode, data_zone)
+maoi_data_hb <- hb_populations %>% 
+  right_join(maoi_data_hb, join_by(hb == hbt)) %>% 
+  filter(sex == "All") %>% 
+  select(hb_name:drug_quantity, all_ages) %>% 
+  mutate(quantity_per_thousand = drug_quantity / all_ages * 1000)
 
-#Adding the population data
+#Creating a bar chart of the association between healthboard and the number of MAOI prescriptions per 1000 people arranged in descending order 
 
-maoi_data_summarised <- maoi_data_summarised %>% 
-  left_join(gp_practice_populations, join_by(gp_practice == practice_code)) %>% 
-  select(hb_name:data_zone, sex, all_ages)
-
-#Creating a bar chart of the association between healthboard and the number of MAOI prescriptions per person grouped by sex
-
-maoi_data_summarised %>% 
-  filter(!is.na(all_ages)) %>% 
-  ggplot(aes(x = hb_name, y = drug_quantity / all_ages, fill = sex)) +
-  geom_col() +
-  facet_wrap(~sex) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Prescription of MAOIs per person in each health board grouped by sex",
+maoi_data_hb %>% 
+  ggplot(aes(x = fct_rev(fct_reorder(hb_name, quantity_per_thousand)), y = quantity_per_thousand, )) +
+  geom_col(fill = "#6c9b86") +
+  scale_x_discrete(labels = label_wrap(8)) +
+  labs(title = "Prescription of MAOIs per 1000 people in each health board",
        x = "Healthboard name",
-       y = "MOAI quantity per person")
-
+       y = "MOAI quantity per 1000 people")
 ```
 
-There are clear outliers in this graph, thus, it would be interesting to explore this data more fragmentally by looking at individual GP practices withing these healthboards of interest. It's also worth noting that these three are likely to be the biggest healthboards, which means that the prescriptions might have been initiated within the specialist psychiatric hospitals which smaller healthboards might not have.
+Contrary to initial hypothesis, the  biggest prescribers are smaller healthboards. The two most interesting observations here are:
+
+* NHS Borders (3rd smallest healthboard) prescribes 30% more MAOIs than NHS Tayside, almost double of the amount of NHS Lothian and four times the amount of NHS Greater Glasgow and Clyde;
+
+* NHS Orkney (the smallest healthboard with no psychiatric hospital) is the third largest prescriber.
+
+This might indicate that it is the lack of secondary and tertiary services  rather than their presence that drives MAOIs prescriptions. Although then NHS Lothian and Greater Glasgow and Clyde would be expected to be the smallest prescribers. It's worth noting, however, that the size of healthboard is not equivalent to the real-life usable resources it has, the populations used are projections and, given MAOIs require a specific skill set and training, it could also be due to individual senior consultants preferences.
+
+
+To investigate the data further, it's possible to look at the prescriptions by individual GPs in each health board
+
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+
+#Collapsing the data so that all MAOIs are combined  for GP practices
+
+maoi_data_gp <- data_july_2025 %>% 
+  group_by(hb_name, hbt, gp_practice) %>% 
+  summarise(drug_quantity = sum(paid_quantity))
+
+#Adding the GP practice addresses and population size to summarised data
+
+maoi_data_gp <- maoi_data_gp %>% 
+  left_join(gp_addresses, join_by(gp_practice == practice_code)) %>% 
+  select(-hb) %>% 
+  mutate(quantity_per_thousand = drug_quantity / practice_list_size * 1000)
+
+#Creating a page of bar charts of the association between GP surgeries and the number of MAOI prescriptions per 1000 people grouped by Health boards using the previously defined function and an iterative "for" cycle
+
+#Empty list to store individual graphs and healthboard names
+
+gp_plots <- list()
+labels_for_naming <- list()
+
+#Setting i to 1, which will be used in the list array as an increment
+
+i = 1
+
+#The cycle function going through each healthboard in the dataframe, drawing and storing the graph of MAOIs prescriptions per 1000 population per GP surgery
+
+  for (hb_name in unique(maoi_data_gp$hb_name)) {
+    gp_plots[[i]] <- create_plot_per_pop(maoi_data_gp, gp_practice_name, hb_name)
+    labels_for_naming[[i]] <- hb_name
+    i = i + 1
+  }
+
+#Incorporating healthboard names into the list
+
+names(gp_plots) <- labels_for_naming
+
+# Calling the GP breakdown graph for NHS Borders
+
+gp_plots$`NHS Borders`
+```
+
+Surprisingly, there are only 3 surgeries there. The two possible hypotheses here can be:
+
+* There are only 3 surgeries in the Borders (highly unlikely);
+
+* These are the surgeries in most deprived areas dealing with a higher burden of unipolar depression (there is some evidence that deprivation can increase the likelihood of developing major depressive disorder (Remes et al., 2019); worth noting that it was only shown in men and the CI are fairly broad).
+
+In order to test both of these assumptions a new dataset with all the surgeries within the Health board needs to be created
+
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+
+#Creating a dataset with all the GP surgeries (even those with 0 prescriptions of interest)
+
+#Joining the healthboards to the dataset first
+
+gp_addresses_and_hbs <- gp_addresses %>% 
+  left_join(HB_lookup, join_by(hb)) %>% 
+  rename(hbt = hb) %>% 
+  select(hb_name, hbt, practice_code : data_zone)
+
+#Creating the actual dataset 
+
+maoi_data_all_gps <- maoi_data_gp %>%
+  ungroup() %>% 
+  select(gp_practice:drug_quantity, quantity_per_thousand) %>% 
+  right_join(gp_addresses_and_hbs, join_by(gp_practice == practice_code)) %>% 
+  select(hb_name, hbt, gp_practice : data_zone) %>% 
+  mutate(drug_quantity = ifelse(is.na(drug_quantity), 0, drug_quantity), quantity_per_thousand = ifelse(is.na(quantity_per_thousand), 0, quantity_per_thousand))
+  
+
+#Adding the deprivation dataset to gp summarised data
+
+maoi_data_all_gps <- maoi_data_all_gps %>% 
+  left_join(simd, join_by(data_zone)) %>% 
+  select(hb_name : data_zone, simd2020v2rank, simd2020v2country_decile, simd2020v2most15pc, simd2020v2least15pc)
+
+# Creating the table to show the data of interest sorting it out by the absolute deprivation ranking (most deprived to least deprived)
+
+borders_outliers_by_deprivation <- maoi_data_all_gps %>%
+  filter(hb_name == "NHS Borders") %>%
+  select(hb_name, gp_practice_name: postcode, quantity_per_thousand, simd2020v2rank) %>% 
+  arrange(simd2020v2rank) %>% 
+  gt() %>% 
+# Rename the columns to make them more user friendly
+  cols_label(hb_name = "Health Board",
+            gp_practice_name = "GP Practice",
+            practice_list_size = "Patient number", 
+            postcode = "Postcode",
+            quantity_per_thousand = "Prescriptions per thousand",
+            simd2020v2rank = "Scottish Index of Multiple Deprivation ranking") %>% 
+  
+  # Format the columns with numbers to have zero decimal places
+  fmt_number(decimals = 0) %>% 
+  
+  # Centre the number columns
+  
+  cols_align(align = "center") %>% 
+  
+  # Add a title and subtitle
+   tab_header(
+       title = "GP surgeries ranked by deprivation, most to least") %>% 
+  # Add alternating colouring to the table rows
+  opt_stylize(style = 6, color = "cyan", add_row_striping = TRUE)
+```    
+
+It's fairly clear here that there is no obvious asociation between deprivation ranking and number of MAOIs prescriptions, with the surgery prescribing the most also covering the least deprived area.
+
+A similar exploration can be done for NHS Orkney
+
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+
+# Calling the GP breakdown graph for NHS Orkney
+
+gp_plots$`NHS Orkney`
+```
+
+Surprisingly, only one surgery. The same two hypotheses as for NHS Borders can be explored.
+
+```{r warning=FALSE, message=FALSE, fig.align = 'center'}
+
+orkney_outliers_by_deprivation <- maoi_data_all_gps %>%
+  filter(hb_name == "NHS Orkney") %>% 
+  arrange(simd2020v2rank) %>% 
+  gt() %>% 
+  # Rename the columns to make them more user friendly
+  cols_label(hb_name = "Health Board",
+            gp_practice_name = "GP Practice",
+            practice_list_size = "Patient number", 
+            postcode = "Postcode",
+            quantity_per_thousand = "Prescriptions per thousand",
+            simd2020v2rank = "Scottish Index of Multiple Deprivation ranking") %>% 
+  
+  # Format the columns with numbers to have zero decimal places
+  fmt_number(decimals = 0) %>% 
+  
+  # Centre the number columns
+  
+  cols_align(align = "center") %>% 
+  
+  # Add a title and subtitle
+   tab_header(
+       title = "GP surgeries ranked by deprivation, most to least") %>% 
+  # Add alternating colouring to the table rows
+  opt_stylize(style = 6, color = "blue", add_row_striping = TRUE)
+```
+
+And, like before, no clear association. The only surgery prescribing MAOIs (at quite huge  numbers per thousand) is in the third least deprived area.
+
+In conclusion, while none of the explored associations have shown clear-cut patterns, some interesting prescribing practices have been noticed. The next steps could be exploring the remaining graph dataset for other healthbords and then moving towards exploring those patterns in the context of more than one month (e.g. a year). It would also be quite useful and interesting to look at these prescribing practices in more detail, potentially, accessing clinical data. Because the question why only one out of seven (NHS Orkney) and three out twenty-two (NHS Borders) prescribe MAOIs remains.
+
+<centre>
+<h2>
+<b>
+Reference list
+</b>
+</centre>
+</h2>
+
+Chamberlain , S.R., Metastasio , A., Stokes , P.R.A., Baldwin, D.S., McAllister-Williams , H., Sinclair , J., Browning , M. and Young , A. (2020). POSITION STATEMENT PS03/20 Use of monoamine oxidase inhibitors (MAOIs) in psychiatric practice. [online] Royal College of Psychiatrists. Available at: https://www.rcpsych.ac.uk/docs/default-source/improving-care/better-mh-policy/position-statements/ps03_20.pdf?sfvrsn=bc814c70_2 [Accessed 30 Nov. 2025].
+
+Laban, T.S. and Saadabadi, A. (2023). Monoamine Oxidase Inhibitors (MAOI). [online] Nih.gov. Available at: https://www.ncbi.nlm.nih.gov/books/NBK539848/ [Accessed 30 Nov. 2025].
+
+Remes, O., Lafortune, L., Wainwright, N., Surtees, P., Khaw, K.-T. and Brayne, C. (2019). Association between area deprivation and major depressive disorder in British men and women: a cohort study. BMJ Open, [online] 9(11), p.e027530. doi:https://doi.org/10.1136/bmjopen-2018-027530.
